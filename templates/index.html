@@ -1,0 +1,490 @@
+<!Doctype html>
+<html lang="ko">
+
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="shortcut icon" href="/static/images/favicon.png">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+          crossorigin="anonymous">
+
+    <!-- JS -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+            integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+            crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
+            integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+            crossorigin="anonymous"></script>
+
+    <!-- 구글폰트 -->
+    <link href="https://fonts.googleapis.com/css?family=Stylish&display=swap" rel="stylesheet">
+
+
+    <title>스파르타코딩클럽 | 나홀로 메모장</title>
+
+    <!-- style -->
+    <style type="text/css">
+        * {
+            font-family: "Stylish", sans-serif;
+        }
+
+        .comment {
+            color: blue;
+            font-weight: bold;
+        }
+
+        .wrap {
+            width: 900px;
+            margin: auto;
+        }
+
+        #post-box {
+            width: 500px;
+            margin: 20px auto;
+            padding: 50px;
+            border: black solid;
+            border-radius: 5px;
+        }
+    </style>
+    <script>
+                 	/* [html 최초 로드 및 이벤트 상시 대기 실시] */
+    	window.onload = function() {
+    		console.log("");
+    		console.log("[window onload] : [start]");
+    		console.log("");
+
+    		// 동적으로 테이블 tbody tr 행 생성 실시
+    		tableInsert();
+    	};
+
+
+    	/* [테이블 리스트 전역 변수 선언 실시] */
+    	const tableList = []; // tableInsert 함수에서 for문을 돌면서 삽입 실시
+    	const pageList = 4; // 한개의 페이지에 보여질 목록 개수
+    	const pageMax = 5; // 최대 생성될 페이지 개수 (페이지를 더보려면 이전, 다음 버튼 클릭해야함)
+    	var idx = 0; //idx 값 확인 후 동적 페이지 전환 및 데이터 표시
+    	var page = 1; //생성 시작할 페이지 번호
+
+
+
+        let order = "asc";
+
+        $(document).ready(function () {
+            $("#cards-box").html("");
+            showArticles();
+        });
+
+        function openClose() {
+            if ($("#post-box").css("display") == "block") {
+                $("#post-box").hide();
+                $("#btn-post-box").text("포스팅 박스 열기");
+            } else {
+                $("#post-url").val('');
+                $("#post-comment").val('');
+                $("#post-box").show();
+                $("#btn-post-box").text("포스팅 박스 닫기");
+            }
+        }
+
+        function postingArticle() {
+            let url = $("#post-url").val();
+            let comment = $("#post-comment").val();
+            let idx = $("#post-idx").val();
+
+            if (idx != '') {
+                $.ajax({
+                    type: "PUT",
+                    url: "/article",
+                    data: {idx: idx, title: url, content: comment},
+                    success: function (response) {
+                        if (response["result"] == "success") {
+                            alert("포스팅 업데이트 성공!");
+                            window.location.reload();
+                        } else {
+                            alert("서버 오류!");
+                        }
+                    }
+                })
+            } else {
+                $.ajax({
+                    type: "POST",
+                    url: "/article",
+                    data: {title: url, content: comment},
+                    success: function (response) {
+                        if (response["result"] == "success") {
+                            alert("포스팅 성공!");
+                            window.location.reload();
+                        } else {
+                            alert("서버 오류!");
+                        }
+                    }
+                })
+            }
+        }
+
+
+
+        function getArticle(idx) {
+            $.ajax({
+                type: "GET",
+                url: `/article?idx=${idx}`,
+                data: {},
+                success: function (response) {
+                    let title = response['article']['title']
+                    let content = response['article']['content']
+                    $("#post-url").val(title);
+                    $("#post-comment").val(content);
+                    $("#post-idx").val(idx);
+                    $("#post-box").show();
+                    $("#btn-post-box").text("포스팅 박스 닫기");
+                }
+            })
+        }
+
+        function readArticle(idx) {
+            $.ajax({
+                type: "PUT",
+                url: `/article/${idx}`,
+                data: {},
+                success: function (response) {
+                    (response['article'])
+                    let title = response['article']['title']
+                    let content = response['article']['content']
+                    $('#modal-title').html(title);
+                    $('#modal-content').html(content);
+                    $('#articleModal').modal('show');
+                }
+            })
+        }
+
+
+        function deleteArticle(idx) {
+            $.ajax({
+                type: "DELETE",
+                url: `/article?idx=${idx}`,
+                success: function (response) { // 성공하면
+                    if (response["result"] == "success") {
+                        alert("삭제 성공!");
+                        window.location.reload();
+                    } else {
+                        alert("서버 오류!");
+                    }
+                }
+            })
+        }
+
+        function setOrder() {
+            if (order == "asc") {
+                order = "desc";
+                $("#viewOrder").html(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-up-square-fill" viewBox="0 0 16 16">
+  <path d="M2 16a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2zm6.5-4.5V5.707l2.146 2.147a.5.5 0 0 0 .708-.708l-3-3a.5.5 0 0 0-.708 0l-3 3a.5.5 0 1 0 .708.708L7.5 5.707V11.5a.5.5 0 0 0 1 0z"/>
+</svg>`)
+            } else {
+                order = "asc";
+                $("#viewOrder").html(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-down-square-fill" viewBox="0 0 16 16">
+  <path d="M2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2zm6.5 4.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V4.5a.5.5 0 0 1 1 0z"/>
+</svg>`)
+            }
+            showArticles();
+        }
+
+
+
+
+
+    	/* [tbody tr 동적 삽입 이벤트 수행 함수] */
+    	function tableInsert(){
+
+
+
+            $.ajax({
+                type: "GET",
+                url: `/articles?order=${order}`,
+                data: {},
+                success: function (response) {
+                    $("#list-post").empty();
+                    let articles = response["articles"];
+                    for (let i = 0; i < articles.length; i++) {
+                        console.log(articles)
+
+                            let index = articles['index']
+                                let title = articles['title']
+                                    let reg_date = articles['reg_date']
+                                          let read_count = articles['read_count']
+
+
+                        var jsonObject = {"index": index, "title": title, "reg_date": reg_date, "read_count": read_count };
+
+
+                    tableList.push(jsonObject);
+
+
+
+                    }
+
+                }
+            })
+
+
+    		// [테이블 리스트에 저장된 데이터 확인]
+
+
+    		// [테이블 행 개수에따라 페이징 처리 실시]
+    		pageInsert(page);
+    	};
+
+
+
+
+    	/* [페이징 처리 이벤트 수행 함수] */
+    	function pageInsert(value){
+
+
+
+    		// [페이징 목록 초기화 실시]
+    		$("#dyn_ul").empty();
+
+
+    		// [생성된 테이블 tr 개수 확인 >> 페이징 처리 5개씩 목록 자름]
+    		var startIndex = value; // 생성 시작 페이지
+    		var endIndex = tableList.length; // 배열에 있는 길이 확인
+
+
+
+    		// [tr 개수에 따라 페이징 해야할 개수 확인]
+    		var pageCount = 0;
+    		var pagePlus = 0;
+    		if(endIndex > pageList){ // tr 행 개수가 5 이상인 경우 (임의로 설정)
+    			pageCount = Math.floor(endIndex / pageList); //생성될 페이지 수 (소수점 버림)
+    			pagePlus = endIndex % pageList; //추가 나머지 자식 수
+    			if(pagePlus > 0){ //추가 자식수가 있는경우 >> 페이지 추가
+    				pageCount = pageCount + 1;
+    			}
+
+    		}
+
+
+    		// [생성될 페이지 번호가 전체 생성되야하는 길이보다 크거나 작은지 확인]
+    		if(startIndex > pageCount){ //길이 초과 시 기존꺼로 다시 저장
+    			startIndex = page;
+    		}
+    		else if(startIndex < 0){ //길이 미만 시 기존꺼로 다시 저장
+    			startIndex = page;
+    		}
+    		else {
+    			page = startIndex;
+    		}
+
+
+    		// [동적 ul 페이징 처리 실시]
+    		if(pageCount == 1){ //생성해야할 페이지가 1페이지인 경우
+    			var insertUl = "<li class='page-item'>"; // 변수 선언
+    			insertUl += insertUl + "<a class='page-link' href='javascript:void(0)' onclick = 'newPage(1);'>";
+    			insertUl += insertUl + i;
+    			insertUl += insertUl + "</a></li>";
+    			$("#dyn_ul").append(insertUl); //jquery append 사용해 동적으로 추가 실시
+    		}
+    		else if(pageCount >= 2){ //생성해야할 페이지가 2페이지 이상인 경우
+    			// 이전 페이지 추가 실시
+    			var insertSTR = "<li class='page-item'>"; // 변수 선언
+    			insertSTR = insertSTR + "<a class='page-link' href='javascript:void(0)' onclick = 'newPage("+"-1"+");'>";
+    			insertSTR = insertSTR + "Previous";
+    			insertSTR = insertSTR + "</a></li>";
+    			$("#dyn_ul").append(insertSTR); //jquery append 사용해 동적으로 추가 실시
+
+    			// 특정 1, 2, 3 .. 페이지 추가 실시
+    			var count = 1;
+    			for(var i=startIndex; i<=pageCount; i++){
+    				if(count > pageMax){ //최대로 생성될 페이지 개수가 된 경우
+    					page = i - pageMax; //생성된 페이지 초기값 저장 (초기 i값 4 탈출 인경우 >> 1값 저장)
+    					break; //for 반복문 탈출
+    				}
+    				var insertUl = "<li class='page-item'>"; // 변수 선언
+    				insertUl = insertUl + "<a class='page-link' href='javascript:void(0)' onclick = 'newPage("+i+");'>";
+	    			insertUl = insertUl + String(i);
+	    			insertUl = insertUl + "</a></li>";
+    				$("#dyn_ul").append(insertUl); //jquery append 사용해 동적으로 추가 실시
+    				count ++;
+    			}
+
+    			// 다음 페이지 추가 실시
+    			var insertEND = "<li class='page-item'>"; // 변수 선언
+    			insertEND = insertEND + "<a class='page-link' href='javascript:void(0)' onclick = 'newPage("+"0"+");'>";
+    			insertEND = insertEND + "Next";
+    			insertEND = insertEND + "</a></li>";
+    			$("#dyn_ul").append(insertEND); //jquery append 사용해 동적으로 추가 실시
+    		}
+
+
+    		// [페이징 완료 후 >> tr 개수 전체 삭제 >> 페이징 개수에 맞게 다시 표시 실시]
+    		$("#list-post").empty(); //tbody tr 전체 삭제 실시
+
+
+    		// [새롭게 페이지 목록 리스트 처리 실시]
+    		newPage(startIndex);
+    	};
+    	/* [tbody tr 동적 삽입 이벤트 수행 함수] */
+    	function newPage(pageCurrent){
+    		// [pageCurrent [-1] >> 이전 / pageCurrent [1 이상] >> 일반 / pageCurrent [0] >> 다음]
+
+
+    		// [새롭게 테이블 tbody tr 데이터 생성 실시]
+    		if(pageCurrent == -1){ // 이전 페이지
+    			$("#list-post").empty(); //tbody tr 전체 삭제 실시
+
+    			// [새롭게 페이징 처리 실시]
+    			var newIdx = page - pageMax;
+
+    			// [테이블 데이터에 따라 페이징 처리 실시]
+    			pageInsert(newIdx); //표시될 페이지 번호 전송
+    		}
+    		else if(pageCurrent == 0){ // 다음 페이지
+    			$("#list-post").empty(); //tbody tr 전체 삭제 실시
+
+    			// [새롭게 페이징 처리 실시]
+    			var newIdx = page + pageMax;
+
+    			// [테이블 데이터에 따라 페이징 처리 실시]
+    			pageInsert(newIdx); //표시될 페이지 번호 전송
+    		}
+    		else { // 일반 테이블 목록 리스트 갱신
+    			$("#list-post").empty(); //tbody tr 전체 삭제 실시
+
+    			// 저장된 idx 에서 페이지 수를 곱해서 새로운 idx 지정
+    			// [1페이지 클릭 >> (1*5) -5 = 0 시작]
+    			// [2페이지 클릭 >> (2*5) -5 = 5 시작]
+    			idx = (pageCurrent * pageList) - pageList;
+
+    			var checkCount = 1;
+    			for(var i=idx; i<tableList.length; i++){ //반복문을 수행하면서 tbody에 tr데이터 삽입 실시
+    				if(checkCount > pageList){ //한페이지에 표시될 목록을 초과한 경우
+    					return;
+    				}
+
+
+    				// json 데이터 파싱 실시
+    				var jsonObject = JSON.parse(JSON.stringify(tableList[i])); //각 배열에 있는 jsonObject 참조
+    				// idx = jsonObject.idx;
+    				var name = jsonObject.name;
+    				var age = jsonObject.age;
+
+
+
+
+    				// 동적으로 리스트 추가
+    				// var insertTr = ""; // 변수 선언
+    				// insertTr += "<tr>"; // body 에 남겨둔 예시처럼 데이터 삽입                              < 문단 구분
+    				// insertTr += "<th scope='row'>" + idx + "</th>"; // body 에 남겨둔 예시처럼 데이터 삽입  <- 리스트번호 표시
+    				// insertTr += "<td>" + name + "</td>";
+    				// insertTr += "<td>" + age + "</td>";
+    				// insertTr += "</tr>";
+
+
+
+                               let tempHtml = ` <tr>
+
+                                       <th scope="row">${index + 1}</th>
+                      <td><a href="#" onclick="readArticle(${post['idx']})">${title}</td>
+                      <td>${reg_date}</td>
+                      <td>${read_count}</td>
+                      <td><button type="button" class="btn btn-danger" onclick="deleteArticle(${index})">삭제</button></td>
+                      <td><button type="button" class="btn btn-primary" onclick="getArticle(${index})">수정</button></td>
+                      </tr>
+                    `;
+                    $("#list-post").append(tempHtml);
+
+
+
+
+
+    				// 카운트 횟수 증가
+    				checkCount ++;
+    			}
+    		}
+    	};
+
+
+
+    </script>
+
+</head>
+
+<body>
+<div class="wrap">
+    <div class="jumbotron">
+        <h1 class="display-4">나홀로 메모장!</h1>
+        <hr class="my-4">
+        <p class="lead">
+            <button onclick="openClose()" id="btn-post-box" type="button" class="btn btn-primary">포스팅 박스 열기
+            </button>
+        </p>
+    </div>
+    <div id="post-box" class="form-post" style="display:none">
+        <div>
+            <div class="form-group">
+                <label for="post-url">제목</label>
+                <input id="post-url" class="form-control" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="post-comment">간단한 내용</label>
+                <textarea id="post-comment" class="form-control" rows="2"></textarea>
+            </div>
+            <input id="post-idx" class="form-control" placeholder="" hidden>
+            <button type="button" class="btn btn-primary" onclick="postingArticle()">기사저장</button>
+        </div>
+    </div>
+    <table class="table">
+        <thead>
+        <tr>
+            <th scope="col">#</th>
+            <th scope="col">제목</th>
+            <th scope="col">날짜</th>
+            <th scope="col">조회<span onclick="setOrder()" id="viewOrder">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                           class="bi bi-arrow-down-square-fill" viewBox="0 0 16 16">
+  <path d="M2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2zm6.5 4.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V4.5a.5.5 0 0 1 1 0z"/>
+</svg>
+                  </span></th>
+            <th scope="col">삭제</th>
+            <th scope="col">수정</th>
+        </tr>
+        </thead>
+        <tbody id="list-post">
+        </tbody>
+    </table>
+</div>
+<!-- Modal -->
+<div class="modal fade" id="articleModal" tabindex="-1" role="dialog" aria-labelledby="articleModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-title"></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="modal-content">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+	<!-- 페이징 속성 정의 -->
+	<nav aria-label="Page navigation example">
+	  <ul id="dyn_ul" class="pagination" style="justify-content: center;">
+	  </ul>
+	</nav>
+
+</body>
+
+</html>
